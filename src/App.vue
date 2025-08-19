@@ -1,11 +1,9 @@
 <template>
   <div class="relative font-sans bg-gray-900 text-white w-screen h-screen overflow-hidden flex flex-col items-center justify-center">
-    
-    <!-- Game Header -->
     <div class="absolute top-0 left-0 p-4 z-10 flex items-center space-x-4">
       <h1 class="text-3xl font-bold tracking-wider">Cosmic Catcher</h1>
       <a
-        href="https://github.com/W1nxy"
+        href="https://github.com/W1nxy/cosmic-catcher"
         target="_blank"
         rel="noopener noreferrer"
         aria-label="GitHub Profile"
@@ -17,24 +15,16 @@
         </svg>
       </a>
     </div>
-
-    <!-- Game Stats -->
     <div class="absolute top-0 right-0 p-4 z-10 flex space-x-6 text-xl">
       <div>Score: <span class="font-bold text-yellow-300">{{ score }}</span></div>
       <div>Lives: <span class="font-bold text-red-400">{{ lives }} ❤️</span></div>
     </div>
-
-    <!-- Game Canvas -->
     <div ref="gameArea" class="relative w-[800px] h-[600px] bg-black border-2 border-purple-500 rounded-lg shadow-lg shadow-purple-500/50 overflow-hidden">
-      
-      <!-- Player -->
       <div 
         class="absolute w-24 h-8 bg-blue-500 rounded-t-lg bottom-0 transition-transform duration-75 ease-out"
         :style="{ left: `${player.x}px` }">
         <div class="absolute -top-4 left-1/2 -translate-x-1/2 text-2xl">🧺</div>
       </div>
-
-      <!-- Falling Stars -->
       <div 
         v-for="star in stars" 
         :key="star.id"
@@ -43,8 +33,6 @@
         ⭐
       </div>
     </div>
-
-    <!-- Game Over Modal -->
     <div v-if="isGameOver" class="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
       <div class="bg-gray-800 p-10 rounded-xl border border-purple-500 text-center shadow-2xl">
         <h2 class="text-5xl font-bold text-red-500 mb-4">Game Over</h2>
@@ -54,8 +42,6 @@
         </button>
       </div>
     </div>
-
-     <!-- Start Game Modal -->
     <div v-if="!gameStarted" class="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
       <div class="bg-gray-800 p-10 rounded-xl border border-purple-500 text-center shadow-2xl">
         <h2 class="text-5xl font-bold text-cyan-400 mb-4">Cosmic Catcher</h2>
@@ -65,41 +51,27 @@
         </button>
       </div>
     </div>
-
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, reactive } from 'vue';
-
-// Game area dimensions
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
-
-// Reactive state
 const score = ref(0);
 const lives = ref(3);
 const isGameOver = ref(false);
 const gameStarted = ref(false);
-const gameArea = ref(null); // To reference the game area div
-
-// Player state
+const gameArea = ref(null);
 const player = reactive({
-  x: GAME_WIDTH / 2 - 48, // 48 is half of player width (w-24 -> 96px)
+  x: GAME_WIDTH / 2 - 48,
   speed: 10,
 });
-
-// Stars state
 const stars = ref([]);
 let starId = 0;
 let starSpeed = ref(2);
-let starSpawnRate = ref(1000); // in ms
-
-// Game loop state
+let starSpawnRate = ref(1000);
 let gameLoopId = null;
-
-// --- Game Logic ---
-
 function startGame() {
   score.value = 0;
   lives.value = 3;
@@ -109,35 +81,25 @@ function startGame() {
   player.x = GAME_WIDTH / 2 - 48;
   starSpeed.value = 2;
   starSpawnRate.value = 1000;
-
-  // Start the game loops
   gameLoop();
   spawnStars();
 }
-
 function gameLoop() {
   if (isGameOver.value) return;
-
-  // Move stars
   stars.value.forEach((star, index) => {
     star.y += starSpeed.value;
-
-    // Check for collision with player
     if (
-      star.y + 24 > GAME_HEIGHT - 32 && // star height + player height
+      star.y + 24 > GAME_HEIGHT - 32 &&
       star.x > player.x - 12 &&
-      star.x < player.x + 96 - 12 // player width
+      star.x < player.x + 96 - 12
     ) {
       stars.value.splice(index, 1);
       score.value += 10;
-      // Increase difficulty
       if (score.value % 50 === 0) {
         starSpeed.value += 0.5;
         starSpawnRate.value = Math.max(200, starSpawnRate.value - 100);
       }
     }
-
-    // Check if star is missed
     if (star.y > GAME_HEIGHT) {
       stars.value.splice(index, 1);
       lives.value -= 1;
@@ -146,43 +108,32 @@ function gameLoop() {
       }
     }
   });
-
   gameLoopId = requestAnimationFrame(gameLoop);
 }
-
 function spawnStars() {
   if (isGameOver.value) return;
-
   stars.value.push({
     id: starId++,
-    x: Math.random() * (GAME_WIDTH - 24), // 24 is star width
+    x: Math.random() * (GAME_WIDTH - 24),
     y: -24,
   });
-
   setTimeout(spawnStars, starSpawnRate.value);
 }
-
 function endGame() {
   isGameOver.value = true;
   cancelAnimationFrame(gameLoopId);
 }
-
-// --- Player Controls ---
-
 function handleKeyDown(e) {
   if (!gameStarted.value || isGameOver.value) return;
-
   if (e.key === 'a' || e.key === 'ArrowLeft') {
     player.x = Math.max(0, player.x - player.speed);
   } else if (e.key === 'd' || e.key === 'ArrowRight') {
-    player.x = Math.min(GAME_WIDTH - 96, player.x + player.speed); // 96 is player width
+    player.x = Math.min(GAME_WIDTH - 96, player.x + player.speed);
   }
 }
-
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
 });
-
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
   cancelAnimationFrame(gameLoopId);
