@@ -35,7 +35,7 @@
         </div>
       </div>
     </div>
-    <div ref="gameArea" class="relative w-[800px] h-[600px] bg-black border-2 border-purple-500 rounded-lg shadow-lg shadow-purple-500/50 overflow-hidden">
+    <div ref="gameArea" class="relative w-[800px] h-[600px] bg-gradient-to-b from-black via-indigo-950 to-black border-2 border-purple-500 rounded-lg shadow-lg shadow-purple-500/50 overflow-hidden">
       <div 
         class="absolute w-24 h-8 bg-blue-500 rounded-t-lg bottom-0 transition-transform duration-75 ease-out"
         :style="{ left: `${player.x}px` }">
@@ -44,11 +44,17 @@
       <div 
         v-for="star in stars" 
         :key="star.id"
-        class="absolute text-2xl select-none"
-        :style="{ left: `${star.x}px`, top: `${star.y}px`, filter: star.type==='penalty' ? 'hue-rotate(200deg)' : 'none' }">
-        <span v-if="star.type==='normal'">⭐</span>
-        <span v-else-if="star.type==='bonus'">🌟</span>
-        <span v-else>☄️</span>
+        class="absolute select-none"
+        :class="star.type === 'penalty' ? 'bomb-sprite' : 'text-2xl'"
+        :style="{ left: `${star.x}px`, top: `${star.y}px` }">
+        <template v-if="star.type==='normal'">⭐</template>
+        <template v-else-if="star.type==='bonus'">🌟</template>
+        <template v-else>
+          <div class="relative w-8 h-8 flex items-center justify-center">
+            <div class="absolute inset-0 rounded-full bg-red-600 animate-pulse shadow-lg shadow-red-700/70 border-2 border-red-300"></div>
+            <div class="relative text-[18px]">💣</div>
+          </div>
+        </template>
       </div>
       <div v-if="paused && !isGameOver" class="absolute inset-0 flex items-center justify-center bg-black/70 z-20">
         <div class="text-center">
@@ -57,6 +63,17 @@
           <button @click="togglePause" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold">Resume</button>
         </div>
       </div>
+      <!-- Combo / Multiplier indicator -->
+      <transition name="pop">
+        <div v-if="combo >= 5 && !isGameOver && !paused" class="absolute top-2 left-1/2 -translate-x-1/2 bg-white/10 border border-cyan-400/40 backdrop-blur px-4 py-2 rounded-full flex items-center space-x-2 text-sm">
+          <span class="text-cyan-300 font-semibold">Combo {{ combo }}</span>
+          <span class="text-green-400 font-bold">x{{ multiplier }}</span>
+        </div>
+      </transition>
+      <transition-group name="particle" tag="div">
+        <div v-for="p in particles" :key="p.id" class="pointer-events-none absolute text-xs font-bold"
+          :style="{ left: p.x+'px', top: p.y+'px', color: p.color, transform: `translate(-50%,-50%) scale(${p.scale})`, opacity: p.opacity }">{{ p.text }}</div>
+      </transition-group>
     </div>
     <div v-if="isGameOver" class="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
       <div class="bg-gray-800 p-10 rounded-xl border border-purple-500 text-center shadow-2xl">
@@ -73,21 +90,87 @@
         <h2 class="text-5xl font-bold text-cyan-400 mb-4">Cosmic Catcher</h2>
         <p class="text-xl mb-2">Use 'A'/'D' or Arrow Keys to move.</p>
         <p class="text-sm mb-6 opacity-80">Touch / drag on mobile. Esc to pause.</p>
-        <div v-if="!user" class="mb-6 space-y-2">
-          <div class="flex space-x-2">
-            <input v-model="auth.username" placeholder="Username" class="px-2 py-1 rounded bg-gray-700 focus:outline-none w-40" />
-            <input v-model="auth.password" type="password" placeholder="Password" class="px-2 py-1 rounded bg-gray-700 focus:outline-none w-40" />
+        <div v-if="!user" class="mb-6 w-[420px] max-w-full">
+          <div class="flex mb-3 rounded overflow-hidden border border-purple-600/50">
+            <button @click="authMode='login'" :class="authMode==='login' ? activeTab : inactiveTab" class="flex-1 py-2 font-semibold">Login</button>
+            <button @click="authMode='signup'" :class="authMode==='signup' ? activeTab : inactiveTab" class="flex-1 py-2 font-semibold">Sign Up</button>
           </div>
-          <div class="flex space-x-2 justify-center">
-            <button @click="signup" class="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm">Sign Up</button>
-            <button @click="login" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">Login</button>
-          </div>
-          <p v-if="authMessage" class="text-xs text-red-400">{{ authMessage }}</p>
+          <form @submit.prevent="authMode==='login'? login() : signup()" class="bg-gradient-to-br from-gray-800/80 to-gray-900/80 p-4 rounded-xl border border-purple-700/40 shadow-inner shadow-purple-900/40 space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="col-span-2 flex flex-col text-left text-sm">
+                <label class="mb-1 font-semibold tracking-wide">Username</label>
+                <input v-model="auth.username" required minlength="3" maxlength="16" placeholder="galaxyHunter" class="px-3 py-2 rounded bg-gray-700/70 focus:outline-none focus:ring focus:ring-purple-500/60" />
+              </div>
+              <div class="col-span-2 flex flex-col text-left text-sm">
+                <label class="mb-1 font-semibold tracking-wide flex items-center justify-between">
+                  <span>Password</span>
+                  <button type="button" @click="showPassword=!showPassword" class="text-cyan-300 text-xs underline">{{ showPassword? 'Hide':'Show' }}</button>
+                </label>
+                <input :type="showPassword? 'text':'password'" v-model="auth.password" required minlength="6" placeholder="••••••" class="px-3 py-2 rounded bg-gray-700/70 focus:outline-none focus:ring focus:ring-purple-500/60" />
+                <div class="h-2 mt-2 rounded bg-gray-700 overflow-hidden">
+                  <div :style="{ width: passwordStrength.width, background: passwordStrength.color }" class="h-full transition-all"></div>
+                </div>
+                <p class="mt-1 text-xs" :class="passwordStrength.textColor">{{ passwordStrength.label }}</p>
+              </div>
+              <div class="col-span-2 flex items-center space-x-2" v-if="authMode==='signup'">
+                <input id="agree" type="checkbox" v-model="acceptedTerms" class="w-4 h-4" required />
+                <label for="agree" class="text-xs opacity-80">I accept the cosmic terms</label>
+              </div>
+            </div>
+            <div class="flex items-center justify-between text-xs opacity-70" v-if="authMode==='login'">
+              <span>Tip: Use a throwaway password.</span>
+              <button type="button" @click="authMode='signup'" class="underline">Need an account?</button>
+            </div>
+            <div class="pt-2 flex justify-center">
+              <button :disabled="submitting" class="relative group px-8 py-2 font-bold rounded-lg overflow-hidden bg-purple-600 hover:bg-purple-700 disabled:opacity-50">
+                <span class="relative z-10">{{ authMode==='login'? (submitting? 'Logging in...' : 'Login') : (submitting? 'Creating...' : 'Create Account') }}</span>
+                <span class="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-fuchsia-500/50 to-cyan-500/40 transition-opacity"></span>
+              </button>
+            </div>
+            <p v-if="authMessage" class="text-xs text-center" :class="authError? 'text-red-400':'text-green-400'">{{ authMessage }}</p>
+          </form>
         </div>
         <div v-else class="mb-4 text-sm text-green-300">Logged in as {{ user.username }} <button @click="logout" class="ml-2 text-red-400 underline">Logout</button></div>
         <button @click="startGame" class="px-8 py-4 bg-purple-600 hover:bg-purple-700 rounded-lg text-2xl font-bold transition-all duration-200 transform hover:scale-110">
           Start Game
         </button>
+        <div class="mt-6">
+          <button v-if="leaderboard.length" @click="showRankings=true" class="text-xs text-cyan-300 underline">View Full Rankings</button>
+        </div>
+      </div>
+    </div>
+    <!-- Rankings Modal -->
+    <div v-if="showRankings" class="absolute inset-0 bg-black/80 flex items-center justify-center z-30">
+      <div class="bg-gray-900/90 rounded-xl border border-cyan-500/40 p-6 w-[480px] max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold text-cyan-300">Global Rankings</h3>
+          <button @click="showRankings=false" class="text-red-400 hover:text-red-300">✕</button>
+        </div>
+        <div class="overflow-auto fancy-scroll pr-1">
+          <table class="w-full text-sm">
+            <thead class="sticky top-0 bg-gray-800/80 backdrop-blur">
+              <tr class="text-left">
+                <th class="py-2 px-2">#</th>
+                <th class="py-2 px-2">Player</th>
+                <th class="py-2 px-2 text-right">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(entry,i) in leaderboardAll" :key="entry.username" :class="entry.username===user?.username ? 'bg-purple-800/40' : 'odd:bg-gray-800/40'">
+                <td class="py-1 px-2 font-mono text-xs">{{ i+1 }}</td>
+                <td class="py-1 px-2 flex items-center space-x-1">
+                  <span v-if="i===0">🥇</span>
+                  <span v-else-if="i===1">🥈</span>
+                  <span v-else-if="i===2">🥉</span>
+                  <span v-else class="w-4"></span>
+                  <span>{{ entry.username }}</span>
+                </td>
+                <td class="py-1 px-2 text-right text-yellow-300 font-semibold">{{ entry.score }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-4 text-right text-xs opacity-60">Top {{ leaderboardAll.length }}</div>
       </div>
     </div>
   </div>
@@ -113,10 +196,39 @@ const gameStarted = ref(false);
 const paused = ref(false);
 const newHighScore = ref(false);
 const highScoreLocal = ref(Number(localStorage.getItem('highScore') || 0));
-const leaderboard = ref([]);
+const leaderboard = ref([]); // top 10 preview
+const leaderboardAll = ref([]); // extended
+const remoteUserHighScore = ref(0);
+const showRankings = ref(false);
 
 // Auth state
 const user = ref(null); // { username, token }
+const authMode = ref('login');
+const showPassword = ref(false);
+const submitting = ref(false);
+const acceptedTerms = ref(false);
+const authError = ref(false);
+// Particles for feedback
+const particles = ref([]);
+let particleId = 0;
+function spawnParticle({ x, y, text, color }) {
+  particles.value.push({ id: particleId++, x, y, text, color, opacity: 1, scale: 1 });
+  const start = performance.now();
+  const dur = 600;
+  (function anim(t){
+    const p = particles.value.find(p=>p.id===particleId-1); // last is fine
+    particles.value.forEach(pt => {
+      if (pt.id === p?.id) {
+        const k = Math.min(1, (performance.now()-start)/dur);
+        pt.opacity = 1 - k;
+        pt.y -= 0.4;
+        pt.scale = 1 + k*0.5;
+      }
+    });
+    if (performance.now()-start < dur) requestAnimationFrame(anim);
+    else particles.value = particles.value.filter(p=>p.opacity>0.05);
+  })();
+}
 const auth = reactive({ username: '', password: '' });
 const authMessage = ref('');
 
@@ -217,22 +329,28 @@ function spawnStars() {
 
 function handleStarCatch(star) {
   lastCatchWasMiss = false;
+  const catchX = player.x + 48; // center
+  const catchY = GAME_HEIGHT - 60;
   if (star.type === 'normal') {
     score.value += NORMAL_POINTS * multiplier.value;
     combo.value++;
     sounds.catchNormal();
+    spawnParticle({ x: catchX, y: catchY, text: `+${NORMAL_POINTS*multiplier.value}`, color: '#facc15' });
   } else if (star.type === 'bonus') {
     score.value += BONUS_POINTS * multiplier.value;
     combo.value += 2;
     sounds.catchBonus();
+    spawnParticle({ x: catchX, y: catchY, text: `+${BONUS_POINTS*multiplier.value}!`, color: '#34d399' });
   } else { // penalty
     score.value = Math.max(0, score.value + PENALTY_POINTS);
     lives.value = Math.max(0, lives.value - 1);
     combo.value = 0; // reset combo
     sounds.penalty();
+    spawnParticle({ x: catchX, y: catchY, text: `${PENALTY_POINTS}`, color: '#f87171' });
     if (lives.value <= 0) return endGame();
   }
   maybeLevelUp();
+  maybeSubmitImprovedScore();
 }
 
 function handleMiss(star) {
@@ -254,6 +372,7 @@ function maybeLevelUp() {
     starSpeed.value += 0.4;
     starSpawnRate.value = Math.max(180, starSpawnRate.value - 70);
     sounds.levelUp();
+    spawnParticle({ x: GAME_WIDTH/2, y: 80, text: `LEVEL ${level.value}`, color: '#7dd3fc' });
   }
 }
 
@@ -269,6 +388,17 @@ function endGame() {
   }
   // Submit remote high score if logged in
   if (user.value) submitScore();
+}
+// Debounced remote submission while playing
+let submitTimeout;
+function maybeSubmitImprovedScore() {
+  if (!user.value) return;
+  if (score.value <= remoteUserHighScore.value) return;
+  clearTimeout(submitTimeout);
+  submitTimeout = setTimeout(async () => {
+    await submitScore();
+    remoteUserHighScore.value = score.value;
+  }, 800);
 }
 
 function handleKeyDown(e) {
@@ -320,18 +450,25 @@ async function api(path, data, opts={}) {
     return { error: e.message };
   }
 }
+function resetAuthMessages(){ authMessage.value=''; authError.value=false; }
 async function signup() {
-  authMessage.value = '';
+  if (submitting.value) return; submitting.value=true; resetAuthMessages();
   const r = await api('signup', auth);
-  if (r.error) authMessage.value = r.error; else authMessage.value = 'Signup success. You can now login.';
+  submitting.value=false;
+  if (r.error) { authMessage.value = r.error; authError.value=true; }
+  else { authMessage.value='Signup success! Please login.'; authMode.value='login'; }
 }
 async function login() {
-  authMessage.value = '';
+  if (submitting.value) return; submitting.value=true; resetAuthMessages();
   const r = await api('login', auth);
-  if (r.error) authMessage.value = r.error; else {
+  submitting.value=false;
+  if (r.error) { authMessage.value=r.error; authError.value=true; }
+  else {
     user.value = { username: auth.username, token: r.token };
     localStorage.setItem('session', JSON.stringify(user.value));
+    await loadProfile();
     fetchLeaderboard();
+    fetchLeaderboardAll();
   }
 }
 function logout() {
@@ -342,6 +479,7 @@ async function submitScore() {
   if (!user.value) return;
   await api('submit-score', { score: score.value });
   fetchLeaderboard();
+  fetchLeaderboardAll();
 }
 async function fetchLeaderboard() {
   try {
@@ -350,6 +488,34 @@ async function fetchLeaderboard() {
     if (!data.error) leaderboard.value = data.scores;
   } catch {}
 }
+async function fetchLeaderboardAll() {
+  try {
+    const res = await fetch('/api/highscores-all');
+    const data = await res.json();
+    if (!data.error) leaderboardAll.value = data.scores;
+  } catch {}
+}
+async function loadProfile() {
+  if (!user.value) return;
+  try { const r = await api('profile', {}); if (!r.error) remoteUserHighScore.value = r.bestScore || 0; } catch {}
+}
+
+const activeTab = 'bg-purple-700/70 text-white';
+const inactiveTab = 'bg-gray-800/60 hover:bg-gray-700/60 text-gray-300';
+
+const passwordStrength = computed(()=>{
+  const pw = auth.password || '';
+  let score=0;
+  if (pw.length>=6) score++;
+  if (pw.length>=10) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  const percent = (score/5)*100;
+  const palette = [ '#dc2626', '#f97316', '#facc15', '#4ade80', '#34d399' ];
+  const labels = ['Very Weak','Weak','Fair','Strong','Elite'];
+  return { width: percent+'%', color: palette[score-1]||'#1f2937', label: labels[score-1]||'Too Short', textColor: score>=3? 'text-green-400':'text-red-400' };
+});
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
@@ -357,8 +523,8 @@ onMounted(() => {
   gameArea.value.addEventListener('pointermove', e => { if (e.buttons===1) handlePointer(e); });
   const savedSession = localStorage.getItem('session');
   if (savedSession) {
-    try { user.value = JSON.parse(savedSession); fetchLeaderboard(); } catch {}
-  } else { fetchLeaderboard(); }
+    try { user.value = JSON.parse(savedSession); loadProfile(); fetchLeaderboard(); fetchLeaderboardAll(); } catch {}
+  } else { fetchLeaderboard(); fetchLeaderboardAll(); }
 });
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);

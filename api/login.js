@@ -9,8 +9,9 @@ export default async function handler(req, res) {
   if (!username || !password) return json(res, 400, { error: 'Missing credentials' });
   const key = `user:${username}`;
   const passHash = await redis.hget(key, 'passHash');
-  if (!passHash) return json(res, 400, { error: 'Invalid login' });
-  const inputHash = await hashPassword(password);
+  const salt = await redis.hget(key, 'salt');
+  if (!passHash || !salt) return json(res, 400, { error: 'Invalid login' });
+  const inputHash = await hashPassword(password + salt);
   if (inputHash !== passHash) return json(res, 400, { error: 'Invalid login' });
   const token = createToken(username);
   await redis.set(`session:${token}`, username, { ex: 60*60*24 });
