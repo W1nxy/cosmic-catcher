@@ -9,7 +9,8 @@
   },
   "dependencies": {
   "vue": "latest",
-  "@vercel/analytics": "latest"
+  "@vercel/analytics": "latest",
+  "@vercel/speed-insights": "latest"
   },
   "devDependencies": {
     "@unocss/preset-uno": "latest",
