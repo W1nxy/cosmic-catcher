@@ -1,5 +1,6 @@
 {
   "name": "cosmic-catcher",
+  "type": "module",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -10,7 +11,8 @@
   "dependencies": {
   "vue": "latest",
   "@vercel/analytics": "latest",
-  "@vercel/speed-insights": "latest"
+  "@vercel/speed-insights": "latest",
+  "@upstash/redis": "latest"
   },
   "devDependencies": {
     "@unocss/preset-uno": "latest",
