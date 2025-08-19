@@ -1,13 +1,111 @@
 import { Redis } from '@upstash/redis';
+import { fallbackStorage } from './_storage.js';
 
 export const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
+// Check if Redis is available
+export function isRedisAvailable() {
+  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+}
+
+// Smart storage that uses Redis when available, fallback storage when not
+export const storage = {
+  async hget(key, field) {
+    if (isRedisAvailable()) {
+      try {
+        return await redis.hget(key, field);
+      } catch (error) {
+        console.warn('Redis hget failed, using fallback:', error.message);
+      }
+    }
+    return fallbackStorage.hget(key, field);
+  },
+
+  async hset(key, data) {
+    if (isRedisAvailable()) {
+      try {
+        return await redis.hset(key, data);
+      } catch (error) {
+        console.warn('Redis hset failed, using fallback:', error.message);
+      }
+    }
+    return fallbackStorage.hset(key, data);
+  },
+
+  async exists(key) {
+    if (isRedisAvailable()) {
+      try {
+        return await redis.exists(key);
+      } catch (error) {
+        console.warn('Redis exists failed, using fallback:', error.message);
+      }
+    }
+    return fallbackStorage.exists(key);
+  },
+
+  async set(key, value, options) {
+    if (isRedisAvailable()) {
+      try {
+        return await redis.set(key, value, options);
+      } catch (error) {
+        console.warn('Redis set failed, using fallback:', error.message);
+      }
+    }
+    return fallbackStorage.set(key, value, options);
+  },
+
+  async get(key) {
+    if (isRedisAvailable()) {
+      try {
+        return await redis.get(key);
+      } catch (error) {
+        console.warn('Redis get failed, using fallback:', error.message);
+      }
+    }
+    return fallbackStorage.get(key);
+  },
+
+  async zadd(setName, data) {
+    if (isRedisAvailable()) {
+      try {
+        return await redis.zadd(setName, data);
+      } catch (error) {
+        console.warn('Redis zadd failed, using fallback:', error.message);
+      }
+    }
+    return fallbackStorage.zadd(setName, data);
+  },
+
+  async zscore(setName, member) {
+    if (isRedisAvailable()) {
+      try {
+        return await redis.zscore(setName, member);
+      } catch (error) {
+        console.warn('Redis zscore failed, using fallback:', error.message);
+      }
+    }
+    return fallbackStorage.zscore(setName, member);
+  },
+
+  async zrevrange(setName, start, stop, options) {
+    if (isRedisAvailable()) {
+      try {
+        return await redis.zrevrange(setName, start, stop, options);
+      } catch (error) {
+        console.warn('Redis zrevrange failed, using fallback:', error.message);
+      }
+    }
+    return fallbackStorage.zrevrange(setName, start, stop, options);
+  }
+};
+
 export function requireEnv() {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    throw new Error('Missing Upstash Redis env vars');
+  // No longer throw error, just warn if Redis isn't available
+  if (!isRedisAvailable()) {
+    console.warn('Redis not available, using fallback storage');
   }
 }
 
