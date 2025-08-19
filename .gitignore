@@ -1,0 +1,114 @@
+############################################################
+# Universal / Node / Vite + Vue project .gitignore         #
+############################################################
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node modules
+node_modules
+
+# Build output
+dist
+dist-ssr
+coverage
+*.local
+
+# Tool / build caches
+.cache
+.vite
+.nyc_output
+.eslintcache
+.stylelintcache
+
+# Environment files (keep example if present)
+.env
+.env.*
+!.env.example
+
+# Package manager stores
+.pnpm-store
+.npm
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.yarn/patches
+.yarn/releases
+.yarn/plugins
+.pnp.cjs
+.pnp.data.json
+.pnp.loader.mjs
+
+# TypeScript build info / reports
+*.tsbuildinfo
+report.*.json
+reports/
+lcov.info
+
+# Archives
+*.tgz
+
+# Cypress / Playwright artifacts
+cypress/videos/
+cypress/screenshots/
+playwright-report/
+blob-report/
+test-results/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+._*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+*.old
+
+# Process / lock files
+*.pid
+*.seed
+*.pid.lock
+
+# Security / audit outputs
+audit-report.json
+*.sarif
+
+# Local tooling artifacts
+.husky/_
+.lintstagedrc.*
+.commitlintrc.*
+
+# Deployment / platform dirs
+.vercel
+.netlify
+.firebase/
+.docker/
+docker-compose.override.yml
+
+# Optional: ignore alternative lockfiles (uncomment if unused)
+# yarn.lock
+# pnpm-lock.yaml
+# bun.lockb
+
+# End
