@@ -2,12 +2,6 @@
 
 Arcade-style Vue 3 mini game: catch falling stars in an ever-accelerating shower. Built with Vite + UnoCSS.
 
-## Repository Description (use for GitHub)
-```
-Arcade-style Vue 3 mini game: catch falling stars as difficulty scales. Built with Vite + UnoCSS.
-```
-Copy/paste (or tweak) that as the repo description.
-
 ## ✨ Features
 - Fast, zero back-end, single-page game
 - Progressive difficulty (spawn rate + fall speed increase every 50 points)
