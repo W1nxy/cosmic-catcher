@@ -15,23 +15,41 @@
         </svg>
       </a>
     </div>
-    <div class="absolute top-0 right-0 p-4 z-10 flex flex-col items-end space-y-1 text-sm sm:text-base">
-      <div class="flex space-x-4 text-xl">
-        <div>Score: <span class="font-bold text-yellow-300">{{ score }}</span></div>
-        <div>Multiplier: <span class="font-bold text-green-400">x{{ multiplier }}</span></div>
-        <div>Lives: <span class="font-bold text-red-400">{{ lives }} ❤️</span></div>
+    <div class="absolute top-0 right-0 p-4 z-10 flex flex-col items-end space-y-2 text-sm sm:text-base w-72">
+      <div class="flex flex-wrap gap-3 text-lg justify-end">
+        <div class="px-2 py-1 rounded bg-white/5 backdrop-blur border border-yellow-400/30">Score <span class="font-bold text-yellow-300">{{ score }}</span></div>
+        <div class="px-2 py-1 rounded bg-white/5 backdrop-blur border border-green-400/30">x<span class="font-bold text-green-400">{{ multiplier }}</span></div>
+        <div class="px-2 py-1 rounded bg-white/5 backdrop-blur border border-red-400/30">❤️ <span class="font-bold text-red-400">{{ lives }}</span></div>
       </div>
-      <div class="flex space-x-4 text-xs opacity-80">
-        <div>Combo: {{ combo }}</div>
-        <div>Level: {{ level }}</div>
-        <div v-if="highScoreLocal">Local HS: <span class="text-yellow-300 font-semibold">{{ highScoreLocal }}</span></div>
-        <div v-if="user">User: <span class="font-semibold text-cyan-300">{{ user.username }}</span></div>
+      <div class="flex flex-wrap gap-2 text-[11px] uppercase tracking-wide opacity-80 justify-end">
+        <div class="px-2 py-0.5 rounded bg-white/5">Combo {{ combo }}</div>
+        <div class="px-2 py-0.5 rounded bg-white/5">Lvl {{ level }}</div>
+        <div class="px-2 py-0.5 rounded bg-white/5" v-if="displayHighScore">Best {{ displayHighScore }}</div>
+        <div class="px-2 py-0.5 rounded bg-white/5" v-if="user">{{ user.username }}</div>
       </div>
-      <div v-if="leaderboard.length" class="mt-1 bg-white/5 rounded p-2 max-h-40 overflow-auto w-64 text-xs">
-        <div class="font-semibold text-center mb-1">Leaderboard (Top 10)</div>
-        <div v-for="(entry,i) in leaderboard" :key="entry.username" class="flex justify-between">
-          <span>{{ i+1 }}. {{ entry.username }}</span>
-          <span class="text-yellow-300">{{ entry.score }}</span>
+      <div class="group relative w-full">
+        <div class="flex items-center justify-between mb-1 text-xs font-semibold text-cyan-300">
+          <span>Top 10</span>
+          <div class="space-x-2 flex items-center">
+            <span v-if="leaderboardLoading" class="animate-pulse text-gray-400">Loading...</span>
+            <button @click="manualRefreshLeaderboard" class="px-2 py-0.5 rounded bg-cyan-900/40 hover:bg-cyan-800/60 text-cyan-300">↻</button>
+            <button v-if="leaderboard.length" @click="showRankings=true" class="px-2 py-0.5 rounded bg-purple-900/40 hover:bg-purple-800/60 text-purple-300">Full</button>
+          </div>
+        </div>
+        <div class="bg-white/5 rounded border border-cyan-400/20 max-h-48 overflow-auto fancy-scroll shadow-inner shadow-cyan-900/40">
+          <template v-if="leaderboard.length">
+            <div v-for="(entry,i) in leaderboard" :key="entry.username" class="flex justify-between px-2 py-1 text-xs font-mono" :class="entry.username===user?.username ? 'bg-cyan-500/10' : 'odd:bg-white/5'">
+              <span class="flex items-center space-x-1">
+                <span class="w-4 text-center">{{ i+1 }}</span>
+                <span class="truncate max-w-[90px]">{{ entry.username }}</span>
+              </span>
+              <span class="text-yellow-300">{{ entry.score }}</span>
+            </div>
+          </template>
+          <div v-else class="px-3 py-6 text-center text-[11px] opacity-60">
+            <p>No leaderboard data.</p>
+            <p class="mt-1">Deploy with Vercel / Upstash.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -85,8 +103,11 @@
         </button>
       </div>
     </div>
-    <div v-if="!gameStarted" class="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
-      <div class="bg-gray-800 p-10 rounded-xl border border-purple-500 text-center shadow-2xl">
+    <canvas ref="starfieldCanvas" class="absolute inset-0 w-full h-full opacity-40 pointer-events-none"></canvas>
+    <div v-if="!gameStarted" class="absolute inset-0 bg-black/80 flex items-center justify-center z-20 backdrop-blur-sm">
+      <div class="bg-gradient-to-br from-gray-900/90 via-purple-900/60 to-cyan-900/40 p-10 rounded-2xl border border-purple-500/60 text-center shadow-2xl w-[760px] max-w-full relative overflow-hidden fancy-auth">
+        <div class="absolute -top-32 -left-32 w-96 h-96 bg-purple-700/20 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute -bottom-32 -right-32 w-[500px] h-[500px] bg-cyan-600/10 rounded-full blur-3xl animate-pulse"></div>
         <h2 class="text-5xl font-bold text-cyan-400 mb-4">Cosmic Catcher</h2>
         <p class="text-xl mb-2">Use 'A'/'D' or Arrow Keys to move.</p>
         <p class="text-sm mb-6 opacity-80">Touch / drag on mobile. Esc to pause.</p>
@@ -131,9 +152,12 @@
           </form>
         </div>
         <div v-else class="mb-4 text-sm text-green-300">Logged in as {{ user.username }} <button @click="logout" class="ml-2 text-red-400 underline">Logout</button></div>
-        <button @click="startGame" class="px-8 py-4 bg-purple-600 hover:bg-purple-700 rounded-lg text-2xl font-bold transition-all duration-200 transform hover:scale-110">
-          Start Game
-        </button>
+        <div class="mt-8">
+          <button @click="startGame" class="relative group px-14 py-5 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-cyan-600 rounded-xl text-2xl font-extrabold tracking-wide drop-shadow-lg hover:shadow-[0_0_20px_#a855f7] transition-transform hover:scale-105">
+            <span class="relative z-10">Launch</span>
+            <span class="absolute inset-0 opacity-0 group-hover:opacity-100 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.25),transparent)] transition-opacity"></span>
+          </button>
+        </div>
         <div class="mt-6">
           <button v-if="leaderboard.length" @click="showRankings=true" class="text-xs text-cyan-300 underline">View Full Rankings</button>
         </div>
@@ -196,10 +220,13 @@ const gameStarted = ref(false);
 const paused = ref(false);
 const newHighScore = ref(false);
 const highScoreLocal = ref(Number(localStorage.getItem('highScore') || 0));
+const displayHighScore = computed(()=> user.value ? Math.max(remoteUserHighScore.value, highScoreLocal.value) : highScoreLocal.value );
 const leaderboard = ref([]); // top 10 preview
 const leaderboardAll = ref([]); // extended
 const remoteUserHighScore = ref(0);
 const showRankings = ref(false);
+const leaderboardLoading = ref(false);
+let leaderboardPollInterval;
 
 // Auth state
 const user = ref(null); // { username, token }
@@ -233,6 +260,7 @@ const auth = reactive({ username: '', password: '' });
 const authMessage = ref('');
 
 const gameArea = ref(null);
+const starfieldCanvas = ref(null);
 const player = reactive({ x: GAME_WIDTH / 2 - 48, speed: 10 });
 const stars = ref([]);
 let starId = 0;
@@ -483,10 +511,12 @@ async function submitScore() {
 }
 async function fetchLeaderboard() {
   try {
+    leaderboardLoading.value = true;
     const res = await fetch('/api/highscores');
     const data = await res.json();
     if (!data.error) leaderboard.value = data.scores;
   } catch {}
+  finally { leaderboardLoading.value = false; }
 }
 async function fetchLeaderboardAll() {
   try {
@@ -495,6 +525,7 @@ async function fetchLeaderboardAll() {
     if (!data.error) leaderboardAll.value = data.scores;
   } catch {}
 }
+function manualRefreshLeaderboard(){ fetchLeaderboard(); fetchLeaderboardAll(); }
 async function loadProfile() {
   if (!user.value) return;
   try { const r = await api('profile', {}); if (!r.error) remoteUserHighScore.value = r.bestScore || 0; } catch {}
@@ -525,6 +556,8 @@ onMounted(() => {
   if (savedSession) {
     try { user.value = JSON.parse(savedSession); loadProfile(); fetchLeaderboard(); fetchLeaderboardAll(); } catch {}
   } else { fetchLeaderboard(); fetchLeaderboardAll(); }
+  startStarfield();
+  leaderboardPollInterval = setInterval(()=> fetchLeaderboard(), 15000);
 });
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
@@ -533,5 +566,25 @@ onUnmounted(() => {
   if (gameArea.value) {
     gameArea.value.removeEventListener('pointerdown', handlePointer);
   }
+  clearInterval(leaderboardPollInterval);
 });
+
+// Fancy starfield background canvas
+function startStarfield(){
+  const canvas = starfieldCanvas.value; if (!canvas) return; const ctx = canvas.getContext('2d');
+  function resize(){ canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
+  resize(); window.addEventListener('resize', resize);
+  const starsArr = Array.from({length: 160}, () => ({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, z: Math.random()*0.8 + 0.2, t: Math.random()*360 }));
+  function loop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for (const s of starsArr){
+      s.y += 0.25 * s.z; if (s.y > canvas.height) { s.y = 0; s.x = Math.random()*canvas.width; }
+      s.t += 2; const alpha = 0.5 + 0.5*Math.sin(s.t * Math.PI/180);
+      ctx.fillStyle = `rgba(${180+60*s.z},${180+80*s.z},255,${alpha})`;
+      ctx.fillRect(s.x, s.y, s.z*2, s.z*2);
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
 </script>
